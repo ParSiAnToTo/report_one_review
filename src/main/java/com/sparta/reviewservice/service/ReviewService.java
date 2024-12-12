@@ -6,6 +6,7 @@ import com.sparta.reviewservice.repository.ProductRepository;
 import com.sparta.reviewservice.repository.ReviewRepository;
 import com.sparta.reviewservice.request.ReviewPostRequestDto;
 import com.sparta.reviewservice.request.ReviewRequestDto;
+import com.sparta.reviewservice.response.ReviewListDto;
 import com.sparta.reviewservice.response.ReviewResponseDto;
 import lombok.RequiredArgsConstructor;
 
@@ -15,13 +16,17 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -30,6 +35,7 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final ProductRepository productRepository;
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png");
 
     @Value("${app.upload-dir}")
     private String uploadDir;
@@ -37,27 +43,50 @@ public class ReviewService {
     public ReviewResponseDto getReviews(ReviewRequestDto reviewRequestDto) {
         Product product = productRepository.findById(reviewRequestDto.getProductId()).orElseThrow(() -> new IllegalArgumentException("Product Not Found"));
 
-        Pageable pageable = PageRequest.of(reviewRequestDto.getCursor(), reviewRequestDto.getSize(), Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<Review> reviews = reviewRepository.findByProductId(product.getId(), pageable);
+        Pageable pageable = PageRequest.of(Math.max(0, reviewRequestDto.getCursor() - 1),
+                reviewRequestDto.getSize(),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Page<Review> reviewPage = reviewRepository.findByProductId(product.getId(), pageable);
+
+        List<ReviewListDto> reviews = reviewPage.stream().map(review -> ReviewListDto.builder()
+                        .id(review.getId())
+                        .userId(review.getUserId())
+                        .score(review.getScore())
+                        .content(review.getContent())
+                        .imageUrl(review.getImageUrl())
+                        .createdAt(review.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
 
         return ReviewResponseDto.builder()
-                .totalCount(reviews.getTotalElements())
+                .totalCount(reviewPage.getTotalElements())
                 .score(product.getScore())
-                .cursor(reviews.getNumber() + 1)
-                .reviews(reviews.getContent())
+                .cursor(reviewPage.getNumber() + 1)
+                .reviews(reviews)
                 .build();
     }
 
+    @Transactional
     public void post(Long productId, ReviewPostRequestDto reviewPostRequestDto, MultipartFile img) throws IOException {
+
+        Product product = productRepository.findById(productId).orElseThrow(() -> new IllegalArgumentException("Product Not Found"));
+
+        if (reviewPostRequestDto.getUserId() == null || reviewPostRequestDto.getContent() == null ||
+                reviewPostRequestDto.getScore() < 0 || reviewPostRequestDto.getScore() > 5) {
+            throw new IllegalArgumentException("Invalid Product or Review Post Request");
+        }
 
         String imgUrl = null;
         try {
             if (img != null && !img.isEmpty()) {
                 String fileName = img.getOriginalFilename();
-                String extension = fileName.substring(fileName.lastIndexOf("."));
-                if (extension.equals("jpg") || extension.equals("jpeg") || extension.equals("png")) {
+                String extension = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
+
+                if (extension.isEmpty() || !ALLOWED_EXTENSIONS.contains(extension.toLowerCase())) {
                     throw new IllegalArgumentException("Invalid File Format");
                 }
+
                 String newFileName = UUID.randomUUID() + extension;
 
                 Path imgPath = Paths.get(uploadDir, newFileName);
@@ -70,10 +99,8 @@ public class ReviewService {
             throw new RuntimeException("Image Save Failed", e);
         }
 
-        Product product = productRepository.findById(productId).orElseThrow(() -> new IllegalArgumentException("Product Not Found"));
-
         Review review = Review.builder()
-                .productId(productId)
+                .product(product)
                 .userId(reviewPostRequestDto.getUserId())
                 .score(reviewPostRequestDto.getScore())
                 .content(reviewPostRequestDto.getContent())
@@ -93,27 +120,4 @@ public class ReviewService {
 
         productRepository.save(updatedProduct);
     }
-
-
-    public String postImgTest(MultipartFile img) throws IOException {
-        try {
-            String imgUrl = null;
-
-            String fileName = img.getOriginalFilename();
-            String extension = fileName.substring(fileName.lastIndexOf("."));
-            String newFileName = UUID.randomUUID() + extension;
-
-            Path imgPath = Paths.get(uploadDir, fileName);
-            Files.createDirectories(imgPath.getParent());
-            Files.write(imgPath, img.getBytes());
-
-            imgUrl = imgPath.toString();
-            return imgUrl;
-
-        } catch (Exception e) {
-            throw new RuntimeException("Image Save Test Failed", e);
-        }
-    }
-
-
 }

@@ -6,6 +6,7 @@ import com.sparta.reviewservice.response.ReviewResponseDto;
 import com.sparta.reviewservice.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,13 +18,12 @@ public class ReviewController {
 
     private final ReviewService reviewService;
 
-    @GetMapping("/{productId}/reviews")
-    @ResponseBody
+    @GetMapping(value = "/{productId}/reviews", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getReviews(@PathVariable("productId") Long productId,
                                         @RequestParam(value = "cursor", defaultValue = "0") int cursor,
                                         @RequestParam(value = "size", defaultValue = "10") int size) {
         try {
-            ReviewRequestDto reviewRequestDto = new ReviewRequestDto().builder()
+            ReviewRequestDto reviewRequestDto = ReviewRequestDto.builder()
                     .productId(productId)
                     .cursor(cursor)
                     .size(size)

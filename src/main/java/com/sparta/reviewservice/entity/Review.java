@@ -17,8 +17,9 @@ public class Review {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long productId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "productId", nullable = false)
+    private Product product;
 
     @Column(nullable = false)
     private Long userId;
@@ -36,8 +37,8 @@ public class Review {
     private LocalDateTime createdAt;
 
     @Builder
-    public Review(Long productId, Long userId, float score, String content, String imageUrl, LocalDateTime createdAt) {
-        this.productId = productId;
+    public Review(Product product, Long userId, float score, String content, String imageUrl, LocalDateTime createdAt) {
+        this.product = product;
         this.userId = userId;
         this.score = score;
         this.content = content;
