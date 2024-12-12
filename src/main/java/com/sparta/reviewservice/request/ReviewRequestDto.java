@@ -8,11 +8,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ReviewRequestDto {
     private Long productId;
-    private int cursor;
+    private Long cursor;
     private int size;
 
     @Builder
-    public ReviewRequestDto(Long productId, int cursor, int size) {
+    public ReviewRequestDto(Long productId, Long cursor, int size) {
         this.productId = productId;
         this.cursor = cursor;
         this.size = size;

@@ -10,7 +10,6 @@ import com.sparta.reviewservice.response.ReviewListDto;
 import com.sparta.reviewservice.response.ReviewResponseDto;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -30,16 +29,21 @@ public class ReviewService {
     private final ProductRepository productRepository;
     private final S3Service s3Service;
 
+    @Transactional(readOnly = true)
     public ReviewResponseDto getReviews(ReviewRequestDto reviewRequestDto) {
         Product product = productRepository.findById(reviewRequestDto.getProductId()).orElseThrow(() -> new IllegalArgumentException("Product Not Found"));
 
-        Pageable pageable = PageRequest.of(Math.max(0, reviewRequestDto.getCursor() - 1),
-                reviewRequestDto.getSize(),
-                Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(0, reviewRequestDto.getSize(), Sort.by(Sort.Direction.DESC, "id"));
 
-        Page<Review> reviewPage = reviewRepository.findByProductId(product.getId(), pageable);
+        List<Review> reviews;
+        if (reviewRequestDto.getCursor() == 0) {
+            reviews = reviewRepository.findTopByProductId(product.getId(), pageable);
+        } else {
+            reviews = reviewRepository.findByProductIdByCursor(product.getId(), reviewRequestDto.getCursor(), pageable);
+        }
 
-        List<ReviewListDto> reviews = reviewPage.stream().map(review -> ReviewListDto.builder()
+        List<ReviewListDto> reviewDto = reviews.stream()
+                .map(review -> ReviewListDto.builder()
                         .id(review.getId())
                         .userId(review.getUserId())
                         .score(review.getScore())
@@ -49,11 +53,13 @@ public class ReviewService {
                         .build())
                 .collect(Collectors.toList());
 
+        Long nextCursor = reviews.isEmpty() ? null : reviews.get(reviews.size() - 1).getId();
+
         return ReviewResponseDto.builder()
-                .totalCount(reviewPage.getTotalElements())
+                .totalCount(reviewRepository.countByProductId(product.getId()))
                 .score(product.getScore())
-                .cursor(reviewPage.getNumber() + 1)
-                .reviews(reviews)
+                .cursor(nextCursor)
+                .reviews(reviewDto)
                 .build();
     }
 

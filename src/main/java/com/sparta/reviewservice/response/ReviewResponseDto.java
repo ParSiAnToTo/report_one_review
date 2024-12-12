@@ -11,11 +11,11 @@ import java.util.List;
 public class ReviewResponseDto {
     private Long totalCount;
     private float score;
-    private int cursor;
+    private Long cursor;
     private List<ReviewListDto> reviews;
 
     @Builder
-    public ReviewResponseDto(Long totalCount, float score, int cursor, List<ReviewListDto> reviews) {
+    public ReviewResponseDto(Long totalCount, float score, Long cursor, List<ReviewListDto> reviews) {
         this.totalCount = totalCount;
         this.score = score;
         this.cursor = cursor;

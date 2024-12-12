@@ -20,7 +20,7 @@ public class ReviewController {
 
     @GetMapping(value = "/{productId}/reviews", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getReviews(@PathVariable("productId") Long productId,
-                                        @RequestParam(value = "cursor", defaultValue = "0") int cursor,
+                                        @RequestParam(value = "cursor", defaultValue = "0") Long cursor,
                                         @RequestParam(value = "size", defaultValue = "10") int size) {
         try {
             ReviewRequestDto reviewRequestDto = ReviewRequestDto.builder()
