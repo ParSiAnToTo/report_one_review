@@ -10,7 +10,6 @@ import com.sparta.reviewservice.response.ReviewListDto;
 import com.sparta.reviewservice.response.ReviewResponseDto;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -19,13 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
-import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 
@@ -35,10 +28,7 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final ProductRepository productRepository;
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png");
-
-    @Value("${app.upload-dir}")
-    private String uploadDir;
+    private final S3Service s3Service;
 
     public ReviewResponseDto getReviews(ReviewRequestDto reviewRequestDto) {
         Product product = productRepository.findById(reviewRequestDto.getProductId()).orElseThrow(() -> new IllegalArgumentException("Product Not Found"));
@@ -68,7 +58,7 @@ public class ReviewService {
     }
 
     @Transactional
-    public void post(Long productId, ReviewPostRequestDto reviewPostRequestDto, MultipartFile img) throws IOException {
+    public void post(Long productId, ReviewPostRequestDto reviewPostRequestDto, MultipartFile img) {
 
         Product product = productRepository.findById(productId).orElseThrow(() -> new IllegalArgumentException("Product Not Found"));
 
@@ -78,25 +68,8 @@ public class ReviewService {
         }
 
         String imgUrl = null;
-        try {
-            if (img != null && !img.isEmpty()) {
-                String fileName = img.getOriginalFilename();
-                String extension = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
-
-                if (extension.isEmpty() || !ALLOWED_EXTENSIONS.contains(extension.toLowerCase())) {
-                    throw new IllegalArgumentException("Invalid File Format");
-                }
-
-                String newFileName = UUID.randomUUID() + extension;
-
-                Path imgPath = Paths.get(uploadDir, newFileName);
-                Files.createDirectories(imgPath.getParent());
-                Files.write(imgPath, img.getBytes());
-
-                imgUrl = imgPath.toString();
-            }
-        } catch (Exception e) {
-            throw new RuntimeException("Image Save Failed", e);
+        if (img != null && !img.isEmpty()) {
+            imgUrl = s3Service.uploadFile(img);
         }
 
         Review review = Review.builder()
@@ -109,8 +82,8 @@ public class ReviewService {
 
         reviewRepository.save(review);
 
-        Long newcount = product.getReviewCount() + 1;
-        float newScore = (product.getScore() * product.getReviewCount() + reviewPostRequestDto.getScore()) / newcount;
+        long newcount = product.getReviewCount() + 1;
+        float newScore = Math.round((product.getScore() * product.getReviewCount() + reviewPostRequestDto.getScore()) / newcount);
 
         Product updatedProduct = Product.builder()
                 .id(productId)
