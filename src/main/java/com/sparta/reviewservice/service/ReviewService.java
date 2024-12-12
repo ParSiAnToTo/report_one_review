@@ -48,35 +48,51 @@ public class ReviewService {
                 .build();
     }
 
-//    public void post(Long productId, ReviewPostRequestDto reviewPostRequestDto, MultipartFile img) throws IOException {
-//        Product product = productRepository.findById(productId).orElseThrow(() -> new IllegalArgumentException("Product Not Found"));
-//
-//        String imgUrl = null;
-//        try {
-//            if (img != null && !img.isEmpty()) {
-//                String fileName = img.getOriginalFilename();
-//                String extension = fileName.substring(fileName.lastIndexOf("."));
-//                String newFileName = UUID.randomUUID() + extension;
-//
-//                Path imgPath = Paths.get(uploadDir, fileName);
-//                Files.createDirectories(imgPath.getParent());
-//                Files.write(imgPath, img.getBytes());
-//
-//                imgUrl = imgPath.toString();
-//            }
-//        } catch (Exception e) {
-//            throw new RuntimeException("Image Save Failed", e);
-//        }
-//
-//        Review review = Review.builder()
-//                .id(new ReviewId(productId, reviewPostRequestDto.getUserId()))
-//                .score(reviewPostRequestDto.getScore())
-//                .content(reviewPostRequestDto.getContent())
-//                .imageUrl(imgUrl)
-//                .build();
-//
-//        reviewRepository.save(review);
-//    }
+    public void post(Long productId, ReviewPostRequestDto reviewPostRequestDto, MultipartFile img) throws IOException {
+
+        String imgUrl = null;
+        try {
+            if (img != null && !img.isEmpty()) {
+                String fileName = img.getOriginalFilename();
+                String extension = fileName.substring(fileName.lastIndexOf("."));
+                if (extension.equals("jpg") || extension.equals("jpeg") || extension.equals("png")) {
+                    throw new IllegalArgumentException("Invalid File Format");
+                }
+                String newFileName = UUID.randomUUID() + extension;
+
+                Path imgPath = Paths.get(uploadDir, newFileName);
+                Files.createDirectories(imgPath.getParent());
+                Files.write(imgPath, img.getBytes());
+
+                imgUrl = imgPath.toString();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Image Save Failed", e);
+        }
+
+        Product product = productRepository.findById(productId).orElseThrow(() -> new IllegalArgumentException("Product Not Found"));
+
+        Review review = Review.builder()
+                .productId(productId)
+                .userId(reviewPostRequestDto.getUserId())
+                .score(reviewPostRequestDto.getScore())
+                .content(reviewPostRequestDto.getContent())
+                .imageUrl(imgUrl)
+                .build();
+
+        reviewRepository.save(review);
+
+        Long newcount = product.getReviewCount() + 1;
+        float newScore = (product.getScore() * product.getReviewCount() + reviewPostRequestDto.getScore()) / newcount;
+
+        Product updatedProduct = Product.builder()
+                .id(productId)
+                .reviewCount(newcount)
+                .score(newScore)
+                .build();
+
+        productRepository.save(updatedProduct);
+    }
 
 
     public String postImgTest(MultipartFile img) throws IOException {
