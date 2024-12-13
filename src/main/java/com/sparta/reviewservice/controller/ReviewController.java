@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -35,7 +36,7 @@ public class ReviewController {
 
     @PostMapping("/{productId}/reviews")
     public ResponseEntity<?> postReview(@PathVariable("productId") Long productId,
-                                        @RequestPart("data") ReviewPostRequestDto reviewPostRequestDto,
+                                        @Validated @RequestPart("data") ReviewPostRequestDto reviewPostRequestDto,
                                         @RequestPart(value = "image", required = false) MultipartFile img) {
 
         reviewService.post(productId, reviewPostRequestDto, img);
