@@ -70,7 +70,7 @@ public class ReviewService {
         Product product = productRepository.findById(productId).orElseThrow(() -> new IllegalArgumentException("Product Not Found"));
 
         if (reviewPostRequestDto.getUserId() == null || reviewPostRequestDto.getContent() == null ||
-                reviewPostRequestDto.getScore() < 0 || reviewPostRequestDto.getScore() > 5) {
+                reviewPostRequestDto.getScore() < 0.0f || reviewPostRequestDto.getScore() > 5.0f) {
             throw new IllegalArgumentException("Invalid Product or Review Post Request");
         }
 
