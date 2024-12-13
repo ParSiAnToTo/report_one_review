@@ -97,4 +97,26 @@ public class ReviewControllerTest {
                         .contentType(MediaType.MULTIPART_FORM_DATA))
                 .andExpect(status().isCreated());
     }
+
+    @Test
+    void testPostReviewValidationErrors() throws Exception {
+        ReviewPostRequestDto invalidRequestDto = ReviewPostRequestDto.builder()
+                .userId(null)
+                .score(6.0f)
+                .content("")
+                .build();
+
+        String jsonRequest = objectMapper.writeValueAsString(invalidRequestDto);
+
+        MockMultipartFile data = new MockMultipartFile(
+                "data", "", MediaType.APPLICATION_JSON_VALUE, jsonRequest.getBytes());
+
+        mockMvc.perform(multipart("/products/1/reviews")
+                        .file(data)
+                        .contentType(MediaType.MULTIPART_FORM_DATA))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Required User ID")))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Score is too high")))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Content cannot be blank")));
+    }
 }
