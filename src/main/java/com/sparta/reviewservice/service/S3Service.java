@@ -42,7 +42,7 @@ public class S3Service {
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
             return targetLocation.toUri().toString();
         } catch (IOException e) {
-            throw new RuntimeException("Failed to upload image", e);
+            throw new RuntimeException("Failed to upload image");
         }
     }
 
