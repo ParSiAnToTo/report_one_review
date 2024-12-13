@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -73,30 +74,31 @@ public class ReviewService {
             throw new IllegalArgumentException("Invalid Product or Review Post Request");
         }
 
-        String imgUrl = null;
-        if (img != null && !img.isEmpty()) {
-            imgUrl = s3Service.uploadFile(img);
-        }
-
         Review review = Review.builder()
                 .product(product)
                 .userId(reviewPostRequestDto.getUserId())
                 .score(reviewPostRequestDto.getScore())
                 .content(reviewPostRequestDto.getContent())
-                .imageUrl(imgUrl)
+                .imageUrl(null)
                 .build();
 
         reviewRepository.save(review);
+        productRepository.updateStatistics(product.getId(), reviewPostRequestDto.getScore());
 
-        long newcount = product.getReviewCount() + 1;
-        float newScore = Math.round((product.getScore() * product.getReviewCount() + reviewPostRequestDto.getScore()) / newcount);
+        if (img != null && !img.isEmpty()) {
+            uploadImageAndUpdateReview(img, review);
+        }
 
-        Product updatedProduct = Product.builder()
-                .id(productId)
-                .reviewCount(newcount)
-                .score(newScore)
-                .build();
+    }
 
-        productRepository.save(updatedProduct);
+    @Async
+    public void uploadImageAndUpdateReview(MultipartFile img, Review review) {
+        try {
+            String imgUrl = s3Service.uploadFile(img);
+            Review updatedReview = review.updateImageUrl(imgUrl);
+            reviewRepository.save(updatedReview);
+        } catch (Exception e) {
+            throw new RuntimeException("Review update failed");
+        }
     }
 }

@@ -37,7 +37,8 @@ public class Review {
     private LocalDateTime createdAt;
 
     @Builder
-    public Review(Product product, Long userId, float score, String content, String imageUrl, LocalDateTime createdAt) {
+    public Review(Long id, Product product, Long userId, float score, String content, String imageUrl, LocalDateTime createdAt) {
+        this.id = id;
         this.product = product;
         this.userId = userId;
         this.score = score;
@@ -51,5 +52,17 @@ public class Review {
         if (this.createdAt == null) {
             this.createdAt = LocalDateTime.now();
         }
+    }
+
+    public Review updateImageUrl(String imageUrl) {
+        return Review.builder()
+                .id(this.id)
+                .product(this.product)
+                .userId(this.userId)
+                .score(this.score)
+                .content(this.content)
+                .imageUrl(imageUrl)
+                .createdAt(this.createdAt)
+                .build();
     }
 }
